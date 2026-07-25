@@ -352,6 +352,49 @@ router.patch(
 /**
  * @openapi
  * /api/orders/{id}:
+ *   delete:
+ *     summary: Удалить заказ (Admin/SuperAdmin)
+ *     tags: [Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       204:
+ *         description: Удалён
+ *       403:
+ *         description: Недостаточно прав
+ *       404:
+ *         description: Заказ не найден
+ */
+// orderItems удаляются автоматически (onDelete: "cascade" в схеме).
+router.delete(
+    "/:id",
+    requireRole("Admin", "SuperAdmin"),
+    async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isFinite(id)) {
+            return res.status(400).json({ message: "Некорректный id" });
+        }
+
+        const [deleted] = await db
+            .delete(orders)
+            .where(eq(orders.id, id))
+            .returning();
+
+        if (!deleted) {
+            return res.status(404).json({ message: "Заказ не найден" });
+        }
+
+        res.status(204).send();
+    },
+);
+
+/**
+ * @openapi
+ * /api/orders/{id}:
  *   get:
  *     summary: Один заказ с позициями (только если принадлежит текущему пользователю)
  *     tags: [Orders]

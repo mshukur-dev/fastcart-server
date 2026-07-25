@@ -25,6 +25,15 @@
 здесь тоже можно будет использовать `jwt.verify`), либо перевести всю
 авторизацию на один бэкенд.
 
+## Деплой
+
+Прод: `https://fastcart-server.onrender.com` (Render, бесплатный тариф).
+
+- Бесплатный тариф засыпает после ~15 мин бездействия — первый запрос после
+  сна отвечает с задержкой 10–30 сек, это нормально.
+- **Auto-Deploy отключён.** После `git push` в `main` нужно вручную зайти в
+  Render Dashboard → сервис → **Manual Deploy → Deploy latest commit**.
+
 ## Запуск локально
 
 ```bash
@@ -44,6 +53,8 @@ npm run dev             # http://localhost:4000
 
 ## API
 
+Полная актуальная спека доступна на `/api/docs` (Swagger UI).
+
 ### Баннеры
 
 - `GET /api/banners` — публичный список активных баннеров, по `sortOrder`
@@ -60,8 +71,14 @@ npm run dev             # http://localhost:4000
 Все роуты требуют `Authorization: Bearer <token>`.
 
 - `POST /api/orders` — создать заказ (данные доставки + список товаров-снимков)
-- `GET /api/orders` — список заказов текущего пользователя
-- `GET /api/orders/:id` — один заказ текущего пользователя
+- `GET /api/orders` — список заказов текущего пользователя, с позициями
+- `GET /api/orders/all` — все заказы всех пользователей, с позициями
+  (только `Admin`/`SuperAdmin`) — для дашборда и таблицы заказов админки
+- `PATCH /api/orders/:id/status` — сменить статус заказа (только
+  `Admin`/`SuperAdmin`), тело `{ status: "pending" | "processing" | "shipped" | "delivered" | "cancelled" }`
+- `DELETE /api/orders/:id` — удалить заказ (только `Admin`/`SuperAdmin`);
+  позиции заказа удаляются каскадно
+- `GET /api/orders/:id` — один заказ текущего пользователя, с позициями
 
 ## Полезные команды
 

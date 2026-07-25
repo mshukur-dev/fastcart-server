@@ -1,8 +1,10 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import bannersRouter from "./routes/banners";
 import ordersRouter from "./routes/orders";
+import { swaggerSpec } from "./swagger";
 
 const app = express();
 
@@ -16,6 +18,8 @@ app.use(express.json());
 app.get("/", (_req, res) => {
     res.json({ message: "fastcart-server работает" });
 });
+
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/banners", bannersRouter);
 app.use("/api/orders", ordersRouter);

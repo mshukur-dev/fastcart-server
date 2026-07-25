@@ -17,6 +17,80 @@ interface OrderItemInput {
     quantity: number;
 }
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     OrderItemInput:
+ *       type: object
+ *       required: [productId, productName, price, quantity]
+ *       properties:
+ *         productId: { type: integer }
+ *         productName: { type: string }
+ *         price: { type: number }
+ *         quantity: { type: integer }
+ *     OrderInput:
+ *       type: object
+ *       required: [firstName, lastName, streetAddress, townCity, phoneNumber, email, paymentMethod, items]
+ *       properties:
+ *         firstName: { type: string }
+ *         lastName: { type: string }
+ *         streetAddress: { type: string }
+ *         apartment: { type: string }
+ *         townCity: { type: string }
+ *         phoneNumber: { type: string }
+ *         email: { type: string }
+ *         paymentMethod: { type: string, enum: [bank, cod] }
+ *         items:
+ *           type: array
+ *           items: { $ref: '#/components/schemas/OrderItemInput' }
+ *     Order:
+ *       type: object
+ *       properties:
+ *         id: { type: integer }
+ *         userId: { type: integer }
+ *         firstName: { type: string }
+ *         lastName: { type: string }
+ *         streetAddress: { type: string }
+ *         apartment: { type: string, nullable: true }
+ *         townCity: { type: string }
+ *         phoneNumber: { type: string }
+ *         email: { type: string }
+ *         paymentMethod: { type: string }
+ *         subtotal: { type: number }
+ *         status: { type: string }
+ *         createdAt: { type: string, format: date-time }
+ *         items:
+ *           type: array
+ *           items: { $ref: '#/components/schemas/OrderItemInput' }
+ */
+
+/**
+ * @openapi
+ * /api/orders:
+ *   post:
+ *     summary: Создать заказ (авторизованный пользователь)
+ *     tags: [Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/OrderInput' }
+ *     responses:
+ *       201:
+ *         description: Созданный заказ с позициями
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data: { $ref: '#/components/schemas/Order' }
+ *       400:
+ *         description: Не хватает обязательных полей
+ *       401:
+ *         description: Нет/невалидный токен
+ */
 router.post("/", async (req, res) => {
     const {
         firstName,
@@ -99,6 +173,25 @@ router.post("/", async (req, res) => {
     res.status(201).json({ data: created });
 });
 
+/**
+ * @openapi
+ * /api/orders:
+ *   get:
+ *     summary: Список заказов текущего пользователя
+ *     tags: [Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Заказы текущего пользователя, новые сверху
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Order' }
+ */
 // Список заказов текущего пользователя (только свои — не все заказы всех).
 router.get("/", async (req, res) => {
     const userOrders = await db
@@ -110,6 +203,24 @@ router.get("/", async (req, res) => {
     res.json({ data: userOrders });
 });
 
+/**
+ * @openapi
+ * /api/orders/{id}:
+ *   get:
+ *     summary: Один заказ с позициями (только если принадлежит текущему пользователю)
+ *     tags: [Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Заказ с позициями
+ *       404:
+ *         description: Заказ не найден или принадлежит другому пользователю
+ */
 // Один заказ с позициями — тоже только если он принадлежит текущему юзеру.
 router.get("/:id", async (req, res) => {
     const id = Number(req.params.id);

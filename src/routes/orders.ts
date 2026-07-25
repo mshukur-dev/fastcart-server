@@ -278,6 +278,77 @@ router.get(
     },
 );
 
+const ORDER_STATUSES = [
+    "pending",
+    "processing",
+    "shipped",
+    "delivered",
+    "cancelled",
+];
+
+/**
+ * @openapi
+ * /api/orders/{id}/status:
+ *   patch:
+ *     summary: Изменить статус заказа (Admin/SuperAdmin)
+ *     tags: [Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, processing, shipped, delivered, cancelled]
+ *     responses:
+ *       200:
+ *         description: Обновлённый заказ
+ *       400:
+ *         description: Некорректный статус
+ *       403:
+ *         description: Недостаточно прав
+ *       404:
+ *         description: Заказ не найден
+ */
+router.patch(
+    "/:id/status",
+    requireRole("Admin", "SuperAdmin"),
+    async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isFinite(id)) {
+            return res.status(400).json({ message: "Некорректный id" });
+        }
+
+        const { status } = req.body as { status?: string };
+        if (!status || !ORDER_STATUSES.includes(status)) {
+            return res.status(400).json({
+                message: `status должен быть одним из: ${ORDER_STATUSES.join(", ")}`,
+            });
+        }
+
+        const [updated] = await db
+            .update(orders)
+            .set({ status, updatedAt: new Date() })
+            .where(eq(orders.id, id))
+            .returning();
+
+        if (!updated) {
+            return res.status(404).json({ message: "Заказ не найден" });
+        }
+
+        res.json({ data: updated });
+    },
+);
+
 /**
  * @openapi
  * /api/orders/{id}:

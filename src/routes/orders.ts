@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { orderItems, orders } from "../db/schema";
 import { requireAuth } from "../middleware/auth";
@@ -177,12 +177,12 @@ router.post("/", async (req, res) => {
  * @openapi
  * /api/orders:
  *   get:
- *     summary: Список заказов текущего пользователя
+ *     summary: Список заказов текущего пользователя (с позициями)
  *     tags: [Orders]
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
- *         description: Заказы текущего пользователя, новые сверху
+ *         description: Заказы текущего пользователя вместе с позициями, новые сверху
  *         content:
  *           application/json:
  *             schema:
@@ -200,7 +200,26 @@ router.get("/", async (req, res) => {
         .where(eq(orders.userId, req.user!.id))
         .orderBy(desc(orders.createdAt));
 
-    res.json({ data: userOrders });
+    if (userOrders.length === 0) {
+        return res.json({ data: [] });
+    }
+
+    const items = await db
+        .select()
+        .from(orderItems)
+        .where(
+            inArray(
+                orderItems.orderId,
+                userOrders.map((order) => order.id),
+            ),
+        );
+
+    const data = userOrders.map((order) => ({
+        ...order,
+        items: items.filter((item) => item.orderId === order.id),
+    }));
+
+    res.json({ data });
 });
 
 /**

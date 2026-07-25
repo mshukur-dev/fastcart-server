@@ -2,7 +2,7 @@ import { Router } from "express";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { orderItems, orders } from "../db/schema";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
 
@@ -221,6 +221,62 @@ router.get("/", async (req, res) => {
 
     res.json({ data });
 });
+
+/**
+ * @openapi
+ * /api/orders/all:
+ *   get:
+ *     summary: Все заказы всех пользователей, с позициями (Admin/SuperAdmin)
+ *     tags: [Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Все заказы, новые сверху
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Order' }
+ *       403:
+ *         description: Недостаточно прав
+ */
+// Для дашборда админки — заказы ВСЕХ пользователей, а не только текущего.
+// Отдельный роут (а не параметр у GET /), чтобы не усложнять права доступа
+// на самом частом эндпоинте "мои заказы".
+router.get(
+    "/all",
+    requireRole("Admin", "SuperAdmin"),
+    async (_req, res) => {
+        const allOrders = await db
+            .select()
+            .from(orders)
+            .orderBy(desc(orders.createdAt));
+
+        if (allOrders.length === 0) {
+            return res.json({ data: [] });
+        }
+
+        const items = await db
+            .select()
+            .from(orderItems)
+            .where(
+                inArray(
+                    orderItems.orderId,
+                    allOrders.map((order) => order.id),
+                ),
+            );
+
+        const data = allOrders.map((order) => ({
+            ...order,
+            items: items.filter((item) => item.orderId === order.id),
+        }));
+
+        res.json({ data });
+    },
+);
 
 /**
  * @openapi

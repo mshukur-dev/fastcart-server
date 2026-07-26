@@ -3,6 +3,7 @@ import { eq, asc } from "drizzle-orm";
 import { db } from "../db";
 import { banners } from "../db/schema";
 import { requireRole } from "../middleware/auth";
+import { uploadImage } from "../middleware/upload";
 
 const router = Router();
 
@@ -63,6 +64,60 @@ router.get("/", async (_req, res) => {
         .orderBy(asc(banners.sortOrder));
     res.json({ data });
 });
+
+/**
+ * @openapi
+ * /api/banners/all:
+ *   get:
+ *     summary: Список всех баннеров, включая неактивные (Admin/SuperAdmin)
+ *     tags: [Banners]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Массив всех баннеров, отсортированных по sortOrder
+ */
+// Для админки: та же таблица, но без фильтра isActive — иначе выключенный
+// баннер пропадал бы из списка без возможности включить его обратно.
+router.get("/all", requireRole("Admin", "SuperAdmin"), async (_req, res) => {
+    const data = await db.select().from(banners).orderBy(asc(banners.sortOrder));
+    res.json({ data });
+});
+
+/**
+ * @openapi
+ * /api/banners/upload:
+ *   post:
+ *     summary: Загрузить картинку баннера (Admin/SuperAdmin)
+ *     tags: [Banners]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image: { type: string, format: binary }
+ *     responses:
+ *       201:
+ *         description: URL загруженного файла
+ *       400:
+ *         description: Файл не передан или не изображение
+ */
+// Отдельный шаг перед созданием/обновлением баннера: сначала грузим файл
+// сюда, получаем imageUrl, потом уже отправляем его в POST/PUT /api/banners.
+router.post(
+    "/upload",
+    requireRole("Admin", "SuperAdmin"),
+    uploadImage.single("image"),
+    (req, res) => {
+        if (!req.file) {
+            return res.status(400).json({ message: "Файл не передан" });
+        }
+        const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+        res.status(201).json({ data: { imageUrl } });
+    },
+);
 
 /**
  * @openapi

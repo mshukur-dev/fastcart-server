@@ -72,9 +72,15 @@ axios-инстанс `src/api/customApi.ts` (`VITE_CUSTOM_API_URL`), отдел�
 
 ### Модель данных
 
-- **banners** — `eyebrow`, `title`, `imageUrl` (просто внешняя ссылка, своего
-  файлового хранилища нет — на бесплатном Render файловая система эфемерна),
-  `imageAlt`, `linkUrl`, `sortOrder`, `isActive`.
+- **banners** — `eyebrow`, `title`, `imageUrl`, `imageAlt`, `linkUrl`,
+  `sortOrder`, `isActive`. `imageUrl` — просто строка-ссылка в БД; сам файл
+  заливается отдельным шагом через `POST /api/banners/upload` (multer,
+  `src/middleware/upload.ts`), сохраняется на диск в `uploads/` и отдаётся
+  статикой (`app.use("/uploads", express.static(...))` в `src/index.ts`).
+  **Важно**: на бесплатном Render диск эфемерный — файлы пропадают при
+  каждом новом деплое или когда инстанс "просыпается" после сна. Для
+  учебного проекта это осознанный компромисс; для настоящего прода нужно
+  внешнее хранилище (S3, Cloudinary и т.п.).
 - **orders** — данные доставки (имя, адрес, телефон, email), `paymentMethod`
   (`"bank" | "cod"`), `subtotal`, `status` (см. ниже), `userId` — **не**
   внешний ключ на таблицу пользователей (пользователи живут в другой базе на
@@ -95,7 +101,13 @@ axios-инстанс `src/api/customApi.ts` (`VITE_CUSTOM_API_URL`), отдел�
 
 ### Баннеры (`/api/banners`)
 
-- `GET /` — публичный список активных баннеров, по `sortOrder`
+- `GET /` — публичный список **активных** баннеров, по `sortOrder`
+- `GET /all` — список **всех** баннеров, включая неактивные (только
+  `Admin`/`SuperAdmin`) — использует админка, т.к. иначе выключенный баннер
+  пропал бы из списка без возможности включить его обратно
+- `POST /upload` — загрузить файл картинки (`multipart/form-data`, поле
+  `image`, только `Admin`/`SuperAdmin`), возвращает `{ data: { imageUrl } }`
+  — этот URL потом передаётся в `imageUrl` при создании/обновлении баннера
 - `POST /` — создать (только `Admin`/`SuperAdmin`)
 - `PUT /:id` — обновить (только `Admin`/`SuperAdmin`)
 - `DELETE /:id` — удалить (только `Admin`/`SuperAdmin`)

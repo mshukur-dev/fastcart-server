@@ -4,3 +4,7 @@ node_modules
 .env
 
 dist
+
+# Загруженные картинки баннеров (multer, см. src/middleware/upload.ts) —
+# эфемерны на бесплатном Render, в git не имеет смысла хранить.
+uploads
